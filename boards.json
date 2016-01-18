@@ -1,0 +1,30 @@
+[ {
+    "memo": "/b/", "name": "Random"
+  },
+  {
+    "memo": "/soc/", "name": "Social & Meetups"
+  },
+  {
+    "memo": "/fit/", "name": "Fitness"
+  },
+  {
+    "memo": "/v/", "name": "Videogames"
+  },
+  {
+    "memo": "/g/", "name": "Technology"
+  },
+  {
+    "memo": "/pol/", "name": "Politically Incorrect"
+  },
+  {
+    "memo": "/biz/", "name": "Business & Finance"
+  },
+  {
+    "memo": "/sci/", "name": "Science and Math"
+  },
+  {
+    "memo": "/mu/", "name": "Music"
+  },
+  {
+    "memo": "/tv/", "name": "Television & Film"
+  }]
