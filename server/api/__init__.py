@@ -1,9 +1,11 @@
+# Python-lib and Flask related imports
 from functools import wraps
 from base64 import b64decode
 from flask_restful import Resource, reqparse, request
 # API related imports
 from server.common import responses
 from server.common.routines import get_user
+from server.common.routines import new_filename, is_valid_file, decode_file
 from server.models import Session
 
 
@@ -46,6 +48,7 @@ def handler_data(method):
     return wrapped
 
 
+# TODO: ottimizza gli handler - eseguire una volta sola (definire un secondo decoratore ed un metodo che lo implementi)
 def handler_args(method):
     """
     Method decorator for resource methods.
@@ -131,9 +134,9 @@ class BasicEntity(Resource):
 
         :return: Raises ValueError if some required arguments are missing, else nothing
         """
-        for key in self.args:
-            if self.args[key] is None:
-                raise ValueError('Missing parameter: {}'.format(key))
+        for arg in self.args:
+            if self.args[arg] is None:
+                raise ValueError('Missing parameter: {}'.format(arg))
 
 
 class AuthEntity(BasicEntity):
@@ -233,7 +236,31 @@ class AuthEntity(BasicEntity):
         except AuthException as ae:
             return responses.client_error(401, '{}'.format(ae))
 
-from server.api import hello, registration, activation, me, thread, session, board, university
+    @handler_args
+    def media_processing(self):
+        """
+        Defines a subroutine for media handling in Authorization-driven resources POST methods.
+        It checks for argument parsing integrity first (see handler_args decorator), then validate
+        file field and goes on with securing filename, decoding image string in binary and write it.
+
+        :return: None
+        """
+        if not is_valid_file(self.args['image_name']):
+            raise ValueError('Image not allowed')
+
+        name, path = new_filename(self.args['image_name'])
+        image = decode_file(self.args['image'])
+
+        with open(path, 'wb') as file:
+            file.write(image)
+
+        return name
+
+
+# Module related imports
+from server.api import activation, board, hello, me, media
+from server.api import post, registration, session, thread, university
+
 
 __author__  = 'Danilo Cianfrone'
 __version__ = 'v3.0'

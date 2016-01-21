@@ -27,6 +27,7 @@ class User(db.Model):
     admin      = db.Column(db.Boolean)
     boards     = db.relationship('UserBoard', lazy='joined')
     threads    = db.relationship('Thread', lazy='dynamic')
+    chats      = db.relationship('Chat', lazy='dynamic')
 
     def __init__(self, nickname: str, password: str, salt: str, university: int, email: str, gender: str,
                  activated: bool, token: str, admin=False):
@@ -79,6 +80,14 @@ class User(db.Model):
         """
         return 'f' if self.gender else 'm'
 
+    def get_last_thread(self):
+        """
+        Returns last thread submitted by this user.
+
+        :return: Last submitted thread
+        """
+        return self.threads.order_by(Thread.id.desc()).first()
+
     def get_threads(self, page: int):
         """
         Returns page list of user threads.
@@ -105,6 +114,15 @@ class User(db.Model):
         :return: List of all user subscribed boards
         """
         return [Board.query.get(ub.board) for ub in self.boards]
+
+    def has_requested_chat(self, user: int):
+        return ChatRequest.query.filter_by(u_from=self.id, u_to=user).first() is not None
+
+    def get_requests(self):
+        return ChatRequest.query.filter_by(u_to=self.id, activated=False).all()
+
+    def get_chats(self, page: int):
+        return self.chats.order_by(Chat.last.desc()).paginate(page, 10, False).items
 
 
 class Moderator(db.Model):
@@ -376,14 +394,65 @@ class Thread(db.Model):
         """
         return self.users.first().authid
 
-    def get_authid(self, _user):
+    def get_authid(self, _user: int):
         """
         Returns authid of specified user.
 
         :param _user: User ID
         :return: authid of specified user
         """
-        return self.users.filter_by(user=_user).first().authid
+        link = self.users.filter_by(user=_user).first()
+        return link.authid if link is not None else None
+
+    def get_posts(self, page: int):
+        """
+        Returns list posts page, in pagination query (max. 10 elements per page).
+
+        :param page: Posts list page
+        :return: Posts list
+        """
+        return self.posts.paginate(page, 10, False).items
+
+    def get_last_post(self):
+        """
+        Returns last thread's post created.
+
+        :return: Last post created
+        """
+        return self.posts.order_by(Post.id.desc()).first()
+
+    def incr_replies(self, image: bool):
+        """
+        Increments thread replies counter; if image is True, increments thread images counter, as well.
+
+        :param image: If thread post image is added as well
+        :return: None
+        """
+        self.replies += 1
+
+        if image:
+            self.images += 1
+
+    def decr_replies(self, image: bool):
+        """
+        Decrements thread replies counter; if image is True, decrements thread images counter, as well.
+
+        :param image: If thread post image is deleted as well
+        :return: None
+        """
+        self.replies -= 1
+
+        if image:
+            self.images -= 1
+
+    def get_threaduser(self, user: int):
+        """
+        Returns ThreadUser table related to this thread and specified user.
+
+        :param user: Specified User ID
+        :return: ThreadUser object
+        """
+        return self.users.filter_by(user=user).first()
 
 
 class ThreadUser(db.Model):
@@ -496,3 +565,59 @@ class Post(db.Model):
         :return: Post author authid
         """
         return ThreadUser.query.filter_by(user=self.author, thread=self.thread).first().authid
+
+
+class ChatRequest(db.Model):
+    __tablename__ = 'chatrequest'
+
+    id = db.Column(db.Integer, primary_key=True)
+    u_from   = db.Column(db.Integer, db.ForeignKey('user.id'))
+    u_to     = db.Column(db.Integer, db.ForeignKey('user.id'))
+    accepted = db.Column(db.Boolean)
+
+    def __init__(self, user_from: int, user_to: int):
+        self.u_from   = user_from
+        self.u_to     = user_to
+        self.accepted = False
+        self.chat     = None
+
+    def accept(self):
+        self.accepted = True
+
+
+class Chat(db.Model):
+    __tablename__ = 'chat'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user1    = db.Column(db.Integer, db.ForeignKey('user.id'))
+    user2    = db.Column(db.Integer, db.ForeignKey('user.id'))
+    last     = db.Column(db.DateTime)
+    messages = db.relationship('Message', lazy='dynamic')
+
+    def __init__(self, user1: int, user2: int):
+        self.user1 = user1
+        self.user2 = user2
+        self.last  = datetime.now()
+
+    def get_messages(self, page: int):
+        return self.messages.order_by(Message.sent.desc()).paginate(page, 20, False).items
+
+
+class Message(db.Model):
+    __tablename__ = 'message'
+
+    id = db.Column(db.Integer, primary_key=True)
+    chat   = db.Column(db.Integer, db.ForeignKey('chat.id'))
+    u_from = db.Column(db.Integer, db.ForeignKey('user.id'))
+    u_to   = db.Column(db.Integer, db.ForeignKey('user.id'))
+    text   = db.Column(db.String(1250), nullable=False)
+    image  = db.Column(db.String(36))
+    sent   = db.Column(db.DateTime)
+
+    def __init__(self, chat: int, mfrom: int, mto: int, text: str, image=None):
+        self.chat  = chat
+        self.mfrom = mfrom
+        self.mto   = mto
+        self.text  = text
+        self.image = image
+        self.sent  = datetime.now()

@@ -6,9 +6,8 @@ from sqlalchemy.exc import IntegrityError
 from server import uchan
 from server.api import BasicEntity
 from server.api import handler, handler_data, handler_args
-from server.api.me import Me
 from server.models import User, Session
-from server.common import responses
+from server.common import responses, JSONRepresentation
 from server.common.routines import is_valid_nick, is_valid_pass, hashing_password
 
 
@@ -104,7 +103,7 @@ class SessionAPI(BasicEntity):
             session, user = self.register_session(request)
 
             uchan.add_to_db(session)
-            return responses.successful(201, {'token': session.token, 'user': Me.me_user_representation(user)})
+            return responses.successful(201, {'token': session.token, 'user': JSONRepresentation.me(user)})
         except ValueError as msg:
             # Arguments validation error
             return responses.client_error(400, '{}'.format(msg))
