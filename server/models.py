@@ -27,7 +27,8 @@ class User(db.Model):
     admin      = db.Column(db.Boolean)
     boards     = db.relationship('UserBoard', lazy='joined')
     threads    = db.relationship('Thread', lazy='dynamic')
-    chats      = db.relationship('Chat', lazy='dynamic')
+    # Need to fix this
+    chats      = db.relationship('Chat', foreign_keys="Chat.user1", lazy='dynamic')
 
     def __init__(self, nickname: str, password: str, salt: str, university: int, email: str, gender: str,
                  activated: bool, token: str, admin=False):

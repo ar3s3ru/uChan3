@@ -79,6 +79,7 @@ class AcceptChatAPI(AuthEntity):
         def accepting_routine(user: User, chatrequest: ChatRequest):
             # Define new Chat entity
             chat = Chat(chatrequest.u_from, chatrequest.u_to)
+            chatrequest.accept()
             uchan.add_to_db(chat)
 
             # Return new chat
